@@ -1,27 +1,13 @@
 import logging
-from logging import (
-    Logger,
-)
-from discord.ext.commands import (
-    Cog
-)
-from discord import (
-    app_commands, Interaction, WebhookMessage,
-    Message,
-)
-from mafic import (
-    Player
-)
-from discord.ext.tasks import (
-    loop,
-)
+from logging import Logger
+from discord.ext.commands import Cog
+from discord import app_commands, Interaction, Message
+from mafic import Player
+from discord.ext.tasks import loop
 
-from src.player.store import (
-    LavaStore, PlayerStore
-)
-from src.utils.embeds import (
-    ServiceEmbeds, PlayEmbeds,
-)
+from src.player.store import LavaStore, PlayerStore
+from src.utils.embeds import ServiceEmbeds, PlayEmbeds
+from src.db.repository import PlayerDataRepository
 
 
 class Autocomplete:
@@ -42,7 +28,9 @@ class PlayerControl(Cog):
     logger: Logger
 
     def __init__(self, bot):
-        self.bot = bot
+        from main import MyClient
+
+        self.bot: MyClient = bot
         self.logger = logging.getLogger('discord')
 
         # tasks
@@ -51,7 +39,7 @@ class PlayerControl(Cog):
     @app_commands.command(name='pause', description='A pause current player')
     async def pause(self, interaction: Interaction) -> None:
         try:
-            await interaction.response.defer(ephemeral=False, thinking=False)
+            await interaction.response.defer(ephemeral=True, thinking=False)
             player = LavaStore.node.get_player(interaction.guild_id)
 
             await player.pause()
@@ -63,7 +51,7 @@ class PlayerControl(Cog):
     @app_commands.command(name='resume', description='A resume current player')
     async def resume(self, interaction: Interaction) -> None:
         try:
-            await interaction.response.defer(ephemeral=False, thinking=False)
+            await interaction.response.defer(ephemeral=True, thinking=False)
             player = LavaStore.node.get_player(interaction.guild_id)
 
             await player.resume()
@@ -131,31 +119,39 @@ class PlayerControl(Cog):
         try:
             await interaction.response.defer(ephemeral=True, thinking=False)
 
-            player = LavaStore.node.get_player(interaction.guild_id)
-            queue = PlayerStore.get_queue(interaction.guild_id)
+            player = LavaStore.node.get_player(interaction.guild_id)  # type: ignore
+            queue = PlayerStore.get_queue(interaction.guild_id)  # type: ignore
 
             await interaction.followup.send(content='Sended')
 
-            message: Message = await interaction.channel.send(embed=PlayEmbeds.on_now(player, queue))
+            message: Message = await interaction.channel.send(embed=PlayEmbeds.on_now(player, queue))  # type: ignore
 
-            PlayerStore.now_message_store[interaction.guild_id] = (message, interaction, )
+            PlayerStore.now_message_store[interaction.guild_id] = message  # type: ignore
+
+            PlayerDataRepository.create_or_update({'last_now_channel': message.channel.id, 'message_id': message.id, 'guild_id': interaction.guild_id})
         except Exception as ex:
             self.logger.critical(ex)
             await interaction.followup.send(embed=ServiceEmbeds.on_error(ex))
 
     # tasks
-    @loop(seconds=7.0)
+    @loop(seconds=10)
     async def update_now_playing(self):
         self.logger.info('Task - update_now_playing')
 
         try:
             for player in LavaStore.node.players:
-                now_msg_data = PlayerStore.now_message_store.get(player.guild.id)
+                now_msg = PlayerStore.now_message_store.get(player.guild.id)
 
-                if not now_msg_data:
-                    return
+                if not now_msg:
+                    player_data = PlayerDataRepository.get(player.guild.id)
 
-                message, interaction = now_msg_data
+                    if not player_data:
+                        return
+
+                    now_msg = await self.bot.get_channel(player_data.last_now_channel).fetch_message(player_data.message_id) # type: ignore
+                    PlayerStore.now_message_store[player.guild.id] = now_msg
+
+                message = now_msg
                 queue = PlayerStore.get_queue(player.guild.id)
 
                 await message.edit(embed=PlayEmbeds.on_now(player, queue))

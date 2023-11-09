@@ -15,12 +15,9 @@ from config import (
     TOKEN, LAVA_HOST, LAVA_PORT, LAVA_LABEL,
     LAVA_PASSWORD
 )
-from src.commands import (
-    cogs
-)
-from src.player.store import (
-    LavaStore
-)
+from src.commands import cogs
+from src.player.store import LavaStore
+from src.db.init import DataBase
 
 
 class MyClient(Bot):
@@ -34,14 +31,17 @@ class MyClient(Bot):
 
         self.logger.info(f'Logged on as {self.user}')
 
+        self.logger.info(f'Try to import db -> {DataBase.db}')
+        DataBase.init()
+
+        self.logger.info('Try to create lava node')
+        await self.add_lava_node()
+
         self.logger.info('Try to load cogs')
         await self.load_cogs()
 
         sync = await self.tree.sync()
         self.logger.info(f'Sync commands -> {len(sync)}')
-
-        self.logger.info('Try to create lava node')
-        await self.add_lava_node()
 
     async def load_cogs(self) -> None:
         for cog in cogs:

@@ -1,0 +1,1 @@
+/home/bot/projects/bots/fast-ds-music/venv/bin/python /home/bot/projects/bots/fast-ds-music/main.py

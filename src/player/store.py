@@ -4,16 +4,14 @@ from mafic import (
 from discord import (
     TextChannel
 )
-from discord import (
-    Interaction, Message
-)
+from discord import Message
 
 
 class PlayerStore:
     channel_store: dict[str | int, TextChannel] = {}
     track_store: dict[str | int, list[Track]] = {}
     queue: dict[str | int, list[Track]] = {}
-    now_message_store: dict[str | int, tuple[Message, Interaction]] = {}
+    now_message_store: dict[str | int, Message] = {}
 
     @classmethod
     def get_channel(cls, guild_id: str | int) -> TextChannel | None:

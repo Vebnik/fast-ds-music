@@ -87,9 +87,10 @@ class PlayEmbeds:
         current_line_percent = math.ceil((len(line_duration)/100)*current_percent)
         current_line_duration = "❚"*current_line_percent
         current_line_duration = f'[{current_line_duration}{line_duration[current_line_percent:-1]}] ({current_percent} %)'
+        track.title = track.title if len(track.title) < 59 else track.title[:59]
 
         current_track_description =\
-            f'`title   ` [{track.title}]({track.uri})\n`duration` {round(track.length/1000/60, 2)} min.\n`author  ` ${track.author}'
+            f"`title   ` [{track.title}]({track.uri})\n`duration` {'Live 🔴' if track.stream else round(track.length/1000/60, 2)}\n`author  ` ${track.author}"
 
         current_queue = "\n".join([f'`{index+1}` [{track.title}]({track.uri})' for index, track in enumerate(queue[:20])])
 
@@ -99,11 +100,12 @@ class PlayEmbeds:
             description=current_track_description,
         )
 
-        embed.add_field(
-            name='Progress',
-            value=current_line_duration,
-            inline=False,
-        )
+        if not track.stream:
+            embed.add_field(
+                name='Progress',
+                value=current_line_duration,
+                inline=False,
+            )
 
         embed.add_field(
             name='Queue',
