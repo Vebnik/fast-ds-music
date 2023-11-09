@@ -1,7 +1,7 @@
 import logging
 from logging import Logger
 from discord.ext.commands import Cog
-from discord import Game
+from discord import Game, Status
 from discord.ext.tasks import loop
 
 from src.player.store import LavaStore
@@ -24,7 +24,10 @@ class Service(Cog):
 
         try:
             players = LavaStore.node.players
-            await self.bot.change_presence(activity=Game(name=f'🎵 on {len(players)} servers 🖥️'))
+            await self.bot.change_presence(
+                activity=Game(name=f'🎵 on {len(players)} servers 🖥️'),
+                status=Status.online if len(players) else Status.idle
+            )
         except Exception as ex:
             self.logger.critical(ex)
 
